@@ -1,27 +1,94 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import keyboard
+import time
 from sklearn.ensemble import RandomForestClassifier
 
-df = pd.read_csv("teste.csv")
+ARQUIVO = "teste.csv"
 
-X = df.drop("movimento", axis=1)
-y = df["movimento"]
+try:
+    df = pd.read_csv(ARQUIVO)
+except:
+    df = pd.DataFrame(columns=["sensor1", "sensor2", "sensor3", "sensor4", "movimento"])
 
-X_treino, X_teste, y_treino, y_teste = train_test_split(
-    X, y, test_size=0.2
-)
+modelo = None
 
-modelo = RandomForestClassifier()
-modelo.fit(X_treino, y_treino)
+while True:
+    print(df.columns.tolist())
+    print("\n=== ESCOLHA O MODO ===")
+    print("F10 = Treinamento | F4 = Previsão | F1 = Sair")
 
-print("Acurácia:", modelo.score(X_teste, y_teste))
+    # espera tecla
+    while True:
+        if keyboard.is_pressed('f10'):
+            modo = "treino"
+            break
+        elif keyboard.is_pressed('f4'):
+            modo = "prever"
+            break
+        elif keyboard.is_pressed('f1'):
+            print("Encerrando...")
+            exit()
 
-novo_dado = pd.DataFrame(
-    [[0.54, 0.70, 0.08]],
-    columns=X.columns
-)
+    time.sleep(0.3)  # evita múltiplas leituras
 
-resultado = modelo.predict(novo_dado)
+    print(f"\nModo selecionado: {modo.upper()}")
 
-print("Movimento:", resultado[0])
-print(novo_dado)
+    # ---------------- TREINAMENTO ----------------
+    if modo == "treino":
+        print("\n--- NOVA LEITURA (TREINO) ---")
+
+        s1 = float(input("Sensor 1: "))
+        s2 = float(input("Sensor 2: "))
+        s3 = float(input("Sensor 3: "))
+        s4 = float(input("Sensor 4: "))
+
+        print("Pressione: D=direita | E=esquerda | R=repouso")
+
+        while True:
+            if keyboard.is_pressed('d'):
+                movimento = "direita"
+                break
+            elif keyboard.is_pressed('e'):
+                movimento = "esquerda"
+                break
+            elif keyboard.is_pressed('r'):
+                movimento = "repouso"
+                break
+
+        time.sleep(0.3)
+
+        novo = pd.DataFrame([[s1, s2, s3, s4, movimento]],
+                            columns=df.columns)
+
+        df = pd.concat([df, novo], ignore_index=True)
+        df.to_csv(ARQUIVO, index=False)
+
+        print("✔ Dado salvo!")
+
+    # ---------------- PREVISÃO ----------------
+    elif modo == "prever":
+        print("\n--- PREVISÃO ---")
+
+        if len(df) < 5:
+            print("⚠️ Poucos dados para treinar!")
+            continue
+
+        # treina modelo
+        X = df.drop("movimento", axis=1)
+        y = df["movimento"]
+
+        modelo = RandomForestClassifier()
+        modelo.fit(X, y)
+
+        print("✔ Modelo treinado!")
+
+        s1 = float(input("Sensor 1: "))
+        s2 = float(input("Sensor 2: "))
+        s3 = float(input("Sensor 3: "))
+        s4 = float(input("Sensor 4: "))
+
+        novo_dado = pd.DataFrame([[s1, s2, s3, s4]], columns=X.columns)
+
+        resultado = modelo.predict(novo_dado)[0]
+
+        print("Movimento previsto:", resultado)
